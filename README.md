@@ -18,8 +18,7 @@ This project is a baby monitoring system designed to detect crying sounds using 
 ## Installation
 Clone the repository and navigate to the directory:
 ```bash
-git clone https://github.com/yourusername/babycry-detector.git
-cd babycry-detector
+git clone https://github.com/zachvandorp123/cryingcam.git
 ```
 
 ## Usage
