@@ -7,7 +7,7 @@ load_dotenv()
 
 
 def send_notification(message, title):
-    url = f"http://{os.getenv('HOMEASSISTANT_IP_ADDRESS')}:{os.getenv('HOMEASSISTANT_PORT')}/api/services/notify/mobile_app_sm_g991b"
+    url = f"http://{os.getenv('HOMEASSISTANT_IP_ADDRESS')}:{os.getenv('HOMEASSISTANT_PORT')}/api/services/notify/{os.getenv('NOTIFICATION_DEVICE')}"
     headers = {
         "Authorization": f"Bearer {os.getenv('HOME_ASSISTANT_TOKEN')}",
         "Content-Type": "application/json",

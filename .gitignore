@@ -4,3 +4,4 @@ detected_crying/
 temp/
 .env
 baby_cry_detection_model.keras
+__pycache__/
