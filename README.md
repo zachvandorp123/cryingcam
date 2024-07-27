@@ -20,3 +20,14 @@ Clone the repository and navigate to the directory:
 ```bash
 git clone https://github.com/yourusername/babycry-detector.git
 cd babycry-detector
+
+
+##Usage
+Once the container is running, it will continuously analyze audio data from the specified source and send notifications if crying is detected.
+
+##Training Data Management
+To add new training data:
+Crying Sounds: Add .wav files of baby crying sounds to training_audio/baby_crying.
+Non-crying Sounds: Add .wav files of normal or non-crying baby sounds to training_audio/not_crying.
+##Enhancing Model Accuracy
+After the system has saved a collection of detected crying clips in the detected_crying folder, you can review these clips to confirm their accuracy. Validated clips can then be moved back into the training_audio/baby_crying folder to retrain the model, thereby enhancing its accuracy over time.
