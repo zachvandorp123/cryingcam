@@ -1,7 +1,6 @@
 import os
 import librosa
 import numpy as np
-import tensorflow as tf
 from sklearn.model_selection import train_test_split
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, Dropout, Activation

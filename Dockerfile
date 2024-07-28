@@ -1,21 +1,24 @@
-# Use an official Python runtime as a parent image
-FROM python:3.9-slim
+# Use an official lightweight Python image
+FROM python:3.10-slim
 
-# Set the working directory in the container
-WORKDIR /usr/src/app
+# Set the working directory
+WORKDIR /app
 
-# Install any needed packages specified in requirements.txt
-COPY requirements.txt .
-RUN pip install --upgrade pip && \
-    pip install -r requirements.txt
+RUN apt-get update && apt-get install -y \
+    ffmpeg
 
-# Copy the current directory contents into the container at /usr/src/app
-COPY . .
+# Copy only the necessary files
+COPY cryingcam.py ./cryingcam.py
+COPY baby_cry_detection_model.keras ./baby_cry_detection_model.keras
+COPY notifications.py ./notifications.py
+COPY requirements.txt /app/
 
+
+RUN pip install --no-cache-dir -r requirements.txt
 # Make port 8123 available to the world outside this container
 EXPOSE 8123
 
-# Define environment variable
+# Define environment variable to force Python's stdout and stderr to be unbuffered.
 ENV PYTHONUNBUFFERED=1
 
 # Run cryingcam.py when the container launches

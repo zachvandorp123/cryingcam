@@ -1,22 +1,27 @@
 import os
 import subprocess
-import pyaudio
 import numpy as np
 import librosa
-import wave
-import time
 from tensorflow.keras.models import load_model
-from shutil import move  # Import move to handle file moving
-from notifications import send_notification
+from shutil import move
+from notifications import send_notification, strobe_lamp
+import time
+from dotenv import load_dotenv
 
-# Configuration for the audio stream
-FORMAT = pyaudio.paInt16
+load_dotenv()
+
+# Configuration for the audio processing
 CHANNELS = 1
 RATE = 44100
-CHUNK = 1024  # Number of frames read at once
 last_notification_time = 0
 cooldown_seconds = 30  # Cooldown period in seconds
+cry_detections = []  # Track recent times of crying detections
+notification_threshold = 30  # Minimum time in seconds of consistent crying to notify
+save_crying = False  # Option to not save crying clips by default
+save_non_crying = False  # Option to save non-crying clips for review
 
+temp_directory = "temp"
+os.makedirs(temp_directory, exist_ok=True)
 
 def predict_cry(model, features):
     features = np.expand_dims(features, axis=0)
@@ -28,7 +33,7 @@ def predict_cry(model, features):
 
 def extract_features_from_file(file_path):
     try:
-        X, sample_rate = librosa.load(file_path, sr=44100)
+        X, sample_rate = librosa.load(file_path, sr=RATE)
         mfccs = librosa.feature.mfcc(y=X, sr=sample_rate, n_mfcc=40)
         return np.mean(mfccs.T, axis=0)
     except Exception as e:
@@ -37,98 +42,103 @@ def extract_features_from_file(file_path):
         return None
 
 
-def save_audio_clip(data, folder="temp"):
-    if not os.path.exists(folder):
-        os.makedirs(folder)
-    timestamp = time.strftime("%Y%m%d_%H%M%S")
-    filename = os.path.join(folder, f"clip_{timestamp}.wav")
-    wf = wave.open(filename, "wb")
-    wf.setnchannels(CHANNELS)
-    wf.setsampwidth(pyaudio.PyAudio().get_sample_size(FORMAT))
-    wf.setframerate(RATE)
-    wf.writeframes(data)
-    wf.close()
-    return filename
-
-
-def stream_and_detect(rtsp_url, model, listen=False):
+def save_rtsp_to_wav(rtsp_url, duration, output_filename):
     command = [
         "ffmpeg",
+        "-rtsp_transport", 
+        "tcp",
         "-i",
         rtsp_url,
-        "-vn",
+        "-t",
+        str(duration),
         "-acodec",
         "pcm_s16le",
         "-ar",
-        str(RATE),
+        "44100",
         "-ac",
-        str(CHANNELS),
-        "-f",
-        "s16le",
-        "-",
+        "1",
+        "-y",
+        output_filename,
     ]
-    process = subprocess.Popen(command, stdout=subprocess.PIPE)
-    p = pyaudio.PyAudio()
-    stream = p.open(
-        format=FORMAT,
-        channels=CHANNELS,
-        rate=RATE,
-        output=True,
-        frames_per_buffer=CHUNK,
+    print('attempting save rtsp to wave command')
+    subprocess.run(
+        command,
+        check=True,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        timeout=20,
     )
-    audio_buffer = bytes()
+    print(f"Saved audio to {output_filename}")
+    return output_filename
+
+
+def handle_cry_detection(output_filename, model):
+    features = extract_features_from_file(output_filename)
     global last_notification_time
-
-    try:
-        while True:
-            data = process.stdout.read(CHUNK * CHANNELS * 2)
-            if not data:
-                break
-
-            audio_buffer += data
-            if listen:
-                stream.write(data)
-
-            if len(audio_buffer) >= RATE * 2 * 5:  # 5 seconds of audio
-                current_data = audio_buffer[: RATE * 2 * 5]
-                audio_buffer = audio_buffer[RATE * 2 * 5 :]
-                audio_file = save_audio_clip(current_data)
-                features = extract_features_from_file(audio_file)
-                if features is not None:
-                    is_crying = predict_cry(model, features)
-                    current_time = time.time()
-                    if is_crying:
-                        print("Crying detected!")
-                        if current_time - last_notification_time > cooldown_seconds:
-                            send_notification(
-                                "Alert: Baby is crying!", "Home Assistant Notification"
-                            )
-                            last_notification_time = current_time
-                        if not os.path.exists("detected_crying"):
-                            os.makedirs("detected_crying")
-                        move(
-                            audio_file,
-                            os.path.join(
-                                "detected_crying", os.path.basename(audio_file)
-                            ),
-                        )
-                    else:
-                        os.remove(audio_file)
-                        print("No crying detected, file deleted.")
+    global cry_detections
+    if features is not None:
+        is_crying = predict_cry(model, features)
+        current_time = time.time()
+        if is_crying:
+            cry_detections.append(current_time)
+            # Remove old detections
+            cry_detections = [
+                t for t in cry_detections if current_time - t < notification_threshold
+            ]
+            print(f"Crying detected. Total detections in window: {len(cry_detections)}")
+            if (
+                len(cry_detections) >= 3
+            ):  # At least 3 detections within the notification threshold
+                print(
+                    "Crying detected multiple times within the notification threshold!"
+                )
+                if current_time - last_notification_time > cooldown_seconds:
+                    timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+                    message = (
+                        f"Alert: Baby is crying! Detected consistently at {timestamp}"
+                    )
+                    send_notification(message, "Home Assistant Notification")
+                    strobe_lamp(5)
+                    last_notification_time = current_time
+                if save_crying:
+                    if not os.path.exists("detected_crying"):
+                        os.makedirs("detected_crying")
+                    move(
+                        output_filename,
+                        os.path.join(
+                            "detected_crying", os.path.basename(output_filename)
+                        ),
+                    )
                 else:
-                    os.remove(audio_file)  # Clean up if features could not be extracted
-                    print("Not enough data for prediction, file deleted.")
-    except KeyboardInterrupt:
-        print("Stopping...")
-    finally:
-        stream.stop_stream()
-        stream.close()
-        p.terminate()
-        process.terminate()
+                    os.remove(output_filename)
+                    print("Crying detected, file not saved as per settings.")
+            else:
+                os.remove(output_filename)
+                print("Crying detected, awaiting more confirmation.")
+        else:
+            if save_non_crying:
+                if not os.path.exists("not_crying"):
+                    os.makedirs("not_crying")
+                move(
+                    output_filename,
+                    os.path.join("not_crying", os.path.basename(output_filename)),
+                )
+                print("No crying detected, file saved for review.")
+            else:
+                os.remove(output_filename)
+                print("No crying detected, file deleted.")
+    else:
+        os.remove(output_filename)
+        print("Not enough data for prediction, file deleted.")
 
 
 # Main execution
 if __name__ == "__main__":
     model = load_model("baby_cry_detection_model.keras")
+    print('model_loaded')
     rtsp_url = f"rtsp://{os.getenv('WEBCAM_USERNAME')}:{os.getenv('WEBCAM_PW')}@{os.getenv('WEBCAM_IP_ADDRESS')}:{os.getenv('WEBCAM_PORT')}/h264Preview_02_sub"
-    stream_and_detect(rtsp_url, model, listen=False)
+    while True:
+        output_filename = save_rtsp_to_wav(
+            rtsp_url, 5, f"temp/clip_{time.strftime('%Y%m%d_%H%M%S')}.wav"
+        )
+        handle_cry_detection(output_filename, model)
