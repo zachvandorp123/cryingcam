@@ -29,4 +29,6 @@ jobs:
         context: .
         file: ./Dockerfile
         push: true
-        tags: zacharoo12/cryingcam:${{ steps.prep.outputs.tag }}
+        tags: |
+          zacharoo12/cryingcam:${{ steps.prep.outputs.tag }},
+          zacharoo12/cryingcam:latest
