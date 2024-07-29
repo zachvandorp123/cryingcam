@@ -4,7 +4,7 @@ import numpy as np
 import librosa
 from tensorflow.keras.models import load_model
 from shutil import move
-from notifications import send_notification, strobe_lamp
+from notifications import send_notification, baby_crying_light_routine
 import time
 from dotenv import load_dotenv
 
@@ -98,7 +98,7 @@ def handle_cry_detection(output_filename, model):
                         f"Alert: Baby is crying! Detected consistently at {timestamp}"
                     )
                     send_notification(message, "Home Assistant Notification")
-                    strobe_lamp(5)
+                    baby_crying_light_routine()
                     last_notification_time = current_time
                 if save_crying:
                     if not os.path.exists("detected_crying"):
