@@ -15,7 +15,7 @@ headers = {
 }
 
 devices = [zachs_phone,
-           sharons_phone
+           #sharons_phone
            ]
 
 def handle_response(response):
@@ -30,27 +30,49 @@ def handle_response(response):
             print(f"Response: {response.text}")
 
 
-def send_notification(message, title):
+def send_notification(
+    message,
+    title,
+    priority="high",
+    sound_name="default",
+    critical=1,
+    volume=1.0,
+    ttl=30,
+):
     for device in devices:
         url = f"{api}/services/notify/{device}"
         print(url)
-        data = {"message": message, "title": title}
+        # Construct the data payload with nested data structures for iOS and Android specifics
+        data = {
+            "message": message,
+            "title": title,
+            "data": {
+                "ttl": ttl,
+                "priority": priority,  # This is generally for Android
+                "push": {
+                    "sound": {
+                        "name": sound_name,  # The name of the sound file
+                        "critical": critical,  # For iOS to treat as critical
+                        "volume": volume,  # Volume for iOS critical alerts
+                    }
+                },
+            },
+        }
 
+        # Send POST request to the Home Assistant notify API
         response = requests.post(url, json=data, headers=headers)
         handle_response(response)
+
 
 def get_light_status():
     url = f"{api}/states/{light_name}"
     response = requests.get(url, headers=headers)
     if response.status_code == 200:
-        data = response.json()
-        print(f"Status of {light_name}: {data['state']}")
-        if "attributes" in data:
-            print("Additional Attributes:")
-            for key, value in data["attributes"].items():
-                print(f"{key}: {value}")
+        return response.json()
     else:
         print(f"Failed to get the status: {response.status_code} {response.text}")
+        return None
+
 
 def strobe_lamp():
     url = f"{api}/services/light/turn_on"
@@ -101,11 +123,36 @@ def light_on(color="red", brightness=100):
     response_off = requests.post(url, json=data, headers=headers)
     handle_response(response_off)
 
+
+def restore_light(state_info):
+    if state_info["state"] == "on":
+        data = {
+            "entity_id": light_name,
+            "color_name": state_info.get("attributes", {}).get("color_name", "white"),
+            "brightness_pct": state_info.get("attributes", {}).get(
+                "brightness_pct", 100
+            ),
+        }
+        response_on = requests.post(
+            f"{api}/services/light/turn_on", json=data, headers=headers
+        )
+    else:
+        response_off = requests.post(
+            f"{api}/services/light/turn_off",
+            json={"entity_id": light_name},
+            headers=headers,
+        )
+
+    handle_response(response_on if state_info["state"] == "on" else response_off)
+
+
 def baby_crying_light_routine():
+    initial_state = get_light_status()
     light_on()
     strobe_lamp()
     sleep(5)
     light_on("red", 10)
     sleep(60)
     light_on()
-    light_off()
+    if initial_state:
+        restore_light(initial_state)
