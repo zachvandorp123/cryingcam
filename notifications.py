@@ -15,7 +15,7 @@ headers = {
 }
 
 devices = [zachs_phone,
-           #sharons_phone
+           sharons_phone
            ]
 
 def handle_response(response):
