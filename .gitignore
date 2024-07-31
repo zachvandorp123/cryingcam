@@ -2,7 +2,7 @@ training_audio/
 logs/
 detected_crying/
 temp/
-.env
+*.env
 __pycache__/
 .docker_temp*
 *.tar

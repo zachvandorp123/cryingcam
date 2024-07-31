@@ -1,10 +1,30 @@
-version: '3.8'
+version: '3'
 services:
-  myservice:
-    image: cryingcam:latest
-    network_mode: host
-    env_file:
-      - .env
+  homeassistant:
+    container_name: home-assistant
+    image: homeassistant/home-assistant:stable
+    environment:
+      - TZ
+    volumes:
+      - /mnt/home_assistant/config:/config  # Persistent storage for Home Assistant configuration
+    restart: unless-stopped
     ports:
-      - "8123:8123"
+      - "8123:8123"  # Map TCP port 8123 on the host to port 8123 in the container
+
+  cryingcam:
+    container_name: cryingcam
+    image: zacharoo12/cryingcam:latest
+    restart: unless-stopped
+    ports:
       - "554:554"
+    environment:
+      - NOTIFICATION_DEVICE_1
+      - NOTIFICATION_DEVICE_2
+      - BEDROOM_LAMP_NAME
+      - HOMEASSISTANT_PORT
+      - HOMEASSISTANT_IP_ADDRESS
+      - HOME_ASSISTANT_TOKEN
+      - WEBCAM_PW
+      - WEBCAM_USERNAME
+      - WEBCAM_PORT
+      - WEBCAM_IP_ADDRESS
