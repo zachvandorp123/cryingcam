@@ -18,13 +18,11 @@ is_paused = False
 
 @app.route("/command", methods=["POST"])
 def command():
-    global is_paused  # Declare global to modify the global variable
+    global is_paused
     data = request.get_json()
-    print(data)
     if data is not None and "pause" in data:
-        print(data["pause"])
-        is_paused = data["pause"]  # Update the global variable based on the request
-        print(f"confirming is paused is now value = {is_paused}")
+        pause_value = data["pause"].lower() == "true"  # Convert the string to boolean
+        is_paused = pause_value
         status = "paused" if is_paused else "resumed"
         return jsonify({"status": "success", "action": status}), 200
     else:
