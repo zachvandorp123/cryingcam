@@ -33,10 +33,7 @@ def handle_response(response):
 def send_notification(
     message,
     title,
-    priority="high",
     sound_name="default",
-    critical=1,
-    volume=1.0,
     ttl=30,
 ):
     for device in devices:
@@ -48,12 +45,9 @@ def send_notification(
             "title": title,
             "data": {
                 "ttl": ttl,
-                "priority": priority,  # This is generally for Android
                 "push": {
                     "sound": {
-                        "name": sound_name,  # The name of the sound file
-                        "critical": critical,  # For iOS to treat as critical
-                        "volume": volume,  # Volume for iOS critical alerts
+                        "name": sound_name,  # The name of the sound 
                     }
                 },
             },
