@@ -20,9 +20,11 @@ is_paused = False
 def command():
     global is_paused  # Declare global to modify the global variable
     data = request.get_json()
+    print(data)
     if data is not None and "pause" in data:
         print(data["pause"])
         is_paused = data["pause"]  # Update the global variable based on the request
+        print(f"confirming is paused is now value = {is_paused}")
         status = "paused" if is_paused else "resumed"
         return jsonify({"status": "success", "action": status}), 200
     else:
