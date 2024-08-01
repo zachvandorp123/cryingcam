@@ -7,8 +7,32 @@ from shutil import move
 from notifications import send_notification, baby_crying_light_routine
 import time
 from dotenv import load_dotenv
+from flask import Flask, request, jsonify
+import threading
 
-load_dotenv()
+load_dotenv("stack.env")
+
+app = Flask(__name__)
+is_paused = False
+
+
+@app.route("/command", methods=["POST"])
+def command():
+    global is_paused
+    data = request.get_json()  # Using get_json to directly parse JSON data
+    if data and "pause" in data:
+        is_paused = data["pause"]
+        return jsonify({"status": "success", "pause": is_paused}), 200
+    return jsonify({"status": "error", "message": "Invalid command"}), 400
+
+
+def run_flask():
+    app.run(host="0.0.0.0", port=5000, debug=False)
+
+
+if __name__ == "__main__":
+    flask_thread = threading.Thread(target=run_flask)
+    flask_thread.start()
 
 # Configuration for the audio processing
 CHANNELS = 1
@@ -138,7 +162,9 @@ if __name__ == "__main__":
     print('model_loaded')
     rtsp_url = f"rtsp://{os.getenv('WEBCAM_USERNAME')}:{os.getenv('WEBCAM_PW')}@{os.getenv('WEBCAM_IP_ADDRESS')}:{os.getenv('WEBCAM_PORT')}/h264Preview_02_sub"
     while True:
-        output_filename = save_rtsp_to_wav(
-            rtsp_url, 5, f"temp/clip_{time.strftime('%Y%m%d_%H%M%S')}.wav"
-        )
-        handle_cry_detection(output_filename, model)
+        if not is_paused:
+            output_filename = save_rtsp_to_wav(
+                rtsp_url, 5, f"temp/clip_{time.strftime('%Y%m%d_%H%M%S')}.wav"
+            )
+            handle_cry_detection(output_filename, model)
+            
