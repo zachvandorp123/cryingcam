@@ -26,6 +26,11 @@ def command():
     return jsonify({"status": "error", "message": "Invalid command"}), 400
 
 
+@app.route("/status", methods=["GET"])
+def status():
+    return jsonify({"paused": is_paused}), 200
+
+
 def run_flask():
     app.run(host="0.0.0.0", port=5000, debug=False)
 
@@ -167,4 +172,3 @@ if __name__ == "__main__":
                 rtsp_url, 5, f"temp/clip_{time.strftime('%Y%m%d_%H%M%S')}.wav"
             )
             handle_cry_detection(output_filename, model)
-            
