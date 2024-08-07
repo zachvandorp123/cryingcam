@@ -4,7 +4,8 @@ import numpy as np
 import librosa
 from tensorflow.keras.models import load_model
 from shutil import move
-from notifications import send_notification, baby_crying_light_routine
+from notifications import send_notification
+from light_functions import baby_crying_light_routine
 import time
 from dotenv import load_dotenv
 from flask import Flask, request, jsonify
@@ -73,7 +74,6 @@ def extract_features_from_file(file_path):
         print(str(e))
         return None
 
-
 def save_rtsp_to_wav(rtsp_url, duration, output_filename):
     command = [
         "ffmpeg",
@@ -102,7 +102,6 @@ def save_rtsp_to_wav(rtsp_url, duration, output_filename):
     )
     print(f"Saved audio to {output_filename}")
     return output_filename
-
 
 def handle_cry_detection(output_filename, model):
     features = extract_features_from_file(output_filename)
@@ -162,7 +161,6 @@ def handle_cry_detection(output_filename, model):
     else:
         os.remove(output_filename)
         print("Not enough data for prediction, file deleted.")
-
 
 # Main execution
 if __name__ == "__main__":
