@@ -11,6 +11,7 @@ RUN apt-get update && apt-get install -y \
 COPY cryingcam.py ./cryingcam.py
 COPY baby_cry_detection_model.keras ./baby_cry_detection_model.keras
 COPY notifications.py ./notifications.py
+COPY light_functions.py ./light_functions.py
 COPY requirements.txt /app/
 
 
