@@ -1,5 +1,6 @@
 import requests
 import time
+import os
 
 light_name = os.getenv("BEDROOM_LAMP_NAME")
 api = f"http://{os.getenv('HOMEASSISTANT_IP_ADDRESS')}:{os.getenv('HOMEASSISTANT_PORT')}/api"
